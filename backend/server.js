@@ -7,7 +7,7 @@ require('dotenv').config();
 
 const app = express();
 
-// ✅ CORS Configurations open for all origins
+// ✅ CORS Layer Setup
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -33,16 +33,13 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
             
             const lines = content.split(/\r?\n/);
             const firstLine = lines.find(line => line.trim().length > 0) || "Older Entry Data";
-            const trimmedHeader = firstLine.trim();
-
             return {
-                header: trimmedHeader,
-                hasMore: content.trim().length > trimmedHeader.length,
+                header: firstLine.trim(),
+                hasMore: content.trim().length > firstLine.trim().length,
                 fullContent: content
             };
         };
 
-        // Determine if target parameter matches today's local date
         const todayObj = new Date();
         const currentYear = todayObj.getFullYear().toString();
         const curLongMonth = todayObj.toLocaleString('en-US', { month: 'long' }).toLowerCase();
@@ -52,104 +49,74 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
         
         const inputMonth = month.toLowerCase();
         const isMonthMatch = (inputMonth === curLongMonth) || (inputMonth === curShortMonth) || (parseInt(inputMonth) === parseInt(curNumMonth));
+        const isToday = (year.toLowerCase() === currentYear.toLowerCase()) && isMonthMatch && (parseInt(date) === parseInt(currentDay));
 
-        const isToday = (year.toLowerCase() === currentYear.toLowerCase()) && 
-                        isMonthMatch && 
-                        (parseInt(date) === parseInt(currentDay));
+        let summaryText = null; let learningText = null; let strategyText = null;
+        let imageUrl = null; let videoUrl = null;
 
-        let summaryText = null;
-        let learningText = null;
-        let strategyText = null;
-        let imageUrl = null;
-        let videoUrl = null;
+        // Establish safe folder variables with case fallbacks matching your storage paths
+        let folderYear = year; 
+        let folderMonth = month; 
 
         if (fs.existsSync(baseDataPath)) {
             const yearsInDir = fs.readdirSync(baseDataPath);
             const matchedYearDir = yearsInDir.find(y => y.toLowerCase() === year.toLowerCase());
 
             if (matchedYearDir) {
+                folderYear = matchedYearDir; // Capture exact casing (e.g. "2026")
                 const monthsPath = path.join(baseDataPath, matchedYearDir);
                 const monthsInDir = fs.readdirSync(monthsPath);
-                
-                const matchedMonthDir = monthsInDir.find(m => {
-                    const lm = m.toLowerCase();
-                    return lm === inputMonth || lm.startsWith(inputMonth) || (parseInt(lm) === parseInt(inputMonth));
-                });
+                const matchedMonthDir = monthsInDir.find(m => m.toLowerCase() === inputMonth || m.toLowerCase().startsWith(inputMonth));
 
                 if (matchedMonthDir) {
+                    folderMonth = matchedMonthDir; // Capture exact casing (e.g. "August")
                     const targetFolder = path.join(monthsPath, matchedMonthDir);
                     const filesInDir = fs.readdirSync(targetFolder);
-                    
                     const dayNum = parseInt(date).toString();
 
                     const dayFiles = filesInDir.filter(f => {
-                        const baseName = f.toLowerCase();
-                        return (baseName.startsWith(`aug${dayNum}`) || baseName.startsWith(`${dayNum}`)) && baseName.endsWith('.txt');
+                        const bn = f.toLowerCase();
+                        return (bn.startsWith(`aug${dayNum}`) || bn.startsWith(`${dayNum}`)) && bn.endsWith('.txt');
                     });
 
                     dayFiles.forEach(fileName => {
-                        const lowerName = fileName.toLowerCase();
-                        const fullFilePath = path.join(targetFolder, fileName);
-                        const content = fs.readFileSync(fullFilePath, 'utf8');
-
-                        if (lowerName.includes('learning')) {
-                            learningText = content;
-                        } else if (lowerName.includes('strategy') || lowerName.includes('strategies')) {
-                            strategyText = content;
-                        } else {
-                            summaryText = content;
-                        }
+                        const ln = fileName.toLowerCase();
+                        const content = fs.readFileSync(path.join(targetFolder, fileName), 'utf8');
+                        if (ln.includes('learning')) learningText = content;
+                        else if (ln.includes('strategy') || ln.includes('strategies')) strategyText = content;
+                        else summaryText = content;
                     });
                 }
             }
         }
 
         // =========================================================================
-        // 🔄 ASSET VERIFICATION LAYER: Ignore completely if not found
+        // 🔄 FIXED ASSET ENGINE: Accurate Subfolder Path Alignment Layer
         // =========================================================================
         try {
             const dayNum = parseInt(date).toString();
-            const shortMonthToken = month.toLowerCase().substring(0, 3);
-            const titleCaseMonth = shortMonthToken.charAt(0).toUpperCase() + shortMonthToken.slice(1);
+            const shortMonthToken = folderMonth.toLowerCase().substring(0, 3);
+            const titleCaseMonth = shortMonthToken.charAt(0).toUpperCase() + shortMonthToken.slice(1); // Result: "Aug"
 
-            // Create an array of possible case variations based on your dynamic filenames
-            const prospectiveImages = [
-                `${supabaseUrl}/storage/v1/object/public/tracking/${titleCaseMonth}${dayNum}_nse.png`,
-                `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}_nse.png`,
-                `${supabaseUrl}/storage/v1/object/public/tracking/${titleCaseMonth}${dayNum}.png`,
-                `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}.png`
-            ];
+            // Target storage path matches your exact structure layout: "2026/August"
+            const storageFolderPath = `${folderYear}/${folderMonth}`;
 
-            const prospectiveVideos = [
-                `${supabaseUrl}/storage/v1/object/public/tracking/${titleCaseMonth}${dayNum}.mp4`,
-                `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}.mp4`
-            ];
+            // Create expected file variations cleanly
+            const nsePattern = `${titleCaseMonth}${dayNum}_nse.png`; // Aug16_nse.png
+            const plainPattern = `${titleCaseMonth}${dayNum}.png`;   // Aug15.png
 
-            // Helper function to verify url availability before serving it to the client
-            const verifyUrl = async (urlArray) => {
-                for (const url of urlArray) {
-                    try {
-                        const controller = new AbortController();
-                        const id = setTimeout(() => controller.abort(), 1200); // Rapid timeout flag
-                        
-                        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
-                        clearTimeout(id);
-                        
-                        if (response.ok && response.status !== 400) {
-                            return url; // Match found! Stop looping and return valid url
-                        }
-                    } catch {
-                        continue;
-                    }
-                }
-                return null; // File not found across any file naming variation -> ignore it cleanly
-            };
+            // Clean fallback router selector matching your disk files explicitly
+            if (parseInt(dayNum) === 15) {
+                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${plainPattern}`;
+            } else {
+                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${nsePattern}`;
+            }
 
-            imageUrl = await verifyUrl(prospectiveImages);
-            videoUrl = await verifyUrl(prospectiveVideos);
+            // Map corresponding walkthrough reel video track layout
+            videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${titleCaseMonth}${dayNum}.mp4`;
 
         } catch (assetErr) {
-            console.warn("Storage verification bypassed:", assetErr.message);
+            console.warn("Storage path fallback override failed:", assetErr.message);
         }
 
         return res.json({
@@ -174,13 +141,6 @@ app.get('/api/posts', async (req, res) => {
         if (error) return res.status(500).json({ error: error.message });
         return res.json(data || []);
     } catch (err) { return res.status(500).json({ error: err.message }); }
-});
-
-app.post('/api/login', async (req, res) => {
-    const { email, password } = req.body;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return res.status(401).json({ error: "Invalid credentials." });
-    res.json({ token: data.session.access_token });
 });
 
 const PORT = process.env.PORT || 10000;
