@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const app = express();
 
+// ✅ CORS Configurations open for all origins
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -38,6 +39,7 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
             };
         };
 
+        // Determine if target parameter matches today's local date
         const todayObj = new Date();
         const currentYear = todayObj.getFullYear().toString();
         const curLongMonth = todayObj.toLocaleString('en-US', { month: 'long' }).toLowerCase();
@@ -77,7 +79,7 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                     
                     const dayNum = parseInt(date).toString();
 
-                    // ✅ CASE INSENSITIVE ULTRA FIX: Matches both "Aug16" and "aug16" reliably
+                    // CASE INSENSITIVE DIRECTORY SCAN: Matches both "Aug16" and "aug16" inside target folder
                     const dayFiles = filesInDir.filter(f => {
                         const baseName = f.toLowerCase();
                         return (baseName.startsWith(`aug${dayNum}`) || baseName.startsWith(`${dayNum}`)) && baseName.endsWith('.txt');
@@ -96,29 +98,39 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                             summaryText = content;
                         }
                     });
-
-                    const storageFolderPath = `${matchedYearDir}/${matchedMonthDir}`;
-                    try {
-                        const { data: files, error } = await supabase.storage
-                            .from('tracking')
-                            .list(storageFolderPath, { search: date });
-
-                        if (!error && files) {
-                            const imageMatch = files.find(f => f.name.toLowerCase().includes(`aug${dayNum}`) && /\.(png|jpeg|jpg)$/i.test(f.name));
-                            if (imageMatch) {
-                                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${imageMatch.name}`;
-                            }
-
-                            const videoMatch = files.find(f => f.name.toLowerCase().includes(`aug${dayNum}`) && /\.(mp4|mov)$/i.test(f.name));
-                            if (videoMatch) {
-                                videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${videoMatch.name}`;
-                            }
-                        }
-                    } catch (storageErr) {
-                        console.warn("Supabase bypass:", storageErr.message);
-                    }
                 }
             }
+        }
+
+        // ✅ FIXED ASSET ENGINE: Leaving your Supabase layout exactly as it is (scanning bucket root folder directly)
+        try {
+            const dayNum = parseInt(date).toString();
+            
+            // Query root folder list directly using global list params
+            const { data: files, error } = await supabase.storage
+                .from('tracking')
+                .list('', { limit: 100 });
+
+            if (!error && files) {
+                // Find matching media items present at the root baseline level of the bucket
+                const imageMatch = files.find(f => {
+                    const fn = f.name.toLowerCase();
+                    return (fn.startsWith(`aug${dayNum}`) || fn.startsWith(`${dayNum}`)) && /\.(png|jpeg|jpg)$/i.test(fn);
+                });
+                if (imageMatch) {
+                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${imageMatch.name}`;
+                }
+
+                const videoMatch = files.find(f => {
+                    const fn = f.name.toLowerCase();
+                    return (fn.startsWith(`aug${dayNum}`) || fn.startsWith(`${dayNum}`)) && /\.(mp4|mov)$/i.test(fn);
+                });
+                if (videoMatch) {
+                    videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${videoMatch.name}`;
+                }
+            }
+        } catch (storageErr) {
+            console.warn("Supabase root media indexing bypass:", storageErr.message);
         }
 
         return res.json({
@@ -136,13 +148,24 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
     }
 });
 
+// --- Legacy Cloud Table Routes ---
 app.get('/api/posts', async (req, res) => {
     try {
-        const { data, error } = await supabase.from('analysis_posts').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabase
+            .from('analysis_posts')
+            .select('*')
+            .order('created_at', { ascending: false });
         if (error) return res.status(500).json({ error: error.message });
         return res.json(data || []);
     } catch (err) { return res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/login', async (req, res) => {
+    const { email, password } = req.body;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return res.status(401).json({ error: "Invalid credentials." });
+    res.json({ token: data.session.access_token });
+});
+
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Active Engine on Port ${PORT}`));
+app.listen(PORT, () => console.log(`Intelligent Wildcard Engine Active on Port ${PORT}`));
