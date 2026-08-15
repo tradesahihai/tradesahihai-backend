@@ -7,9 +7,9 @@ require('dotenv').config();
 
 const app = express();
 
-// ✅ FIXED CORS: Corrected the origin to target your live trading platform domain
+// ✅ Configured CORS explicitly for your live trading dashboard environment
 app.use(cors({
-    origin: ['https://tradesahihai.github.io', 'http://127.0.0.1:5500'],
+    origin: ['https://github.io', 'http://127.0.0.1:5500'],
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -21,30 +21,36 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabase = createClient(supabaseUrl, process.env.SUPABASE_ANON_KEY);
 
 /**
- * 📈 NEW ENDPOINT: Flat-File Dynamic Analysis Matrix
- * Expected Route: /api/analysis/2026/08-August/Aug15
+ * 📈 DYNAMIC ENDPOINT: Flat-File Analysis Engine Matrix
+ * Expected Operational Route: /api/analysis/2026/August/Aug15
  */
 app.get('/api/analysis/:year/:month/:date', async (req, res) => {
     try {
         const { year, month, date } = req.params;
-        // Sets directory scope path to data folder inside your backend project root
-        const targetFolder = path.join(__dirname, 'data', year, month);
+        
+        // Target path maps to your root folder layout: data -> 2026 -> August
+        const targetFolder = path.join(__dirname, '..', 'data', year, month);
 
-        const summaryPath = path.join(targetFolder, `${date}_summ.txt`);
+        // Fallback checks to find your custom files like _pnb.txt or standard _summ.txt
+        let summaryPath = path.join(targetFolder, `${date}_summ.txt`);
+        if (!fs.existsSync(summaryPath)) {
+            summaryPath = path.join(targetFolder, `${date}_pnb.txt`);
+        }
+        
         const learningPath = path.join(targetFolder, `${date}_learning.txt`);
         const strategyPath = path.join(targetFolder, `${date}_strategy.txt`);
 
-        // 1. Validate mandatory structural layout constraints
+        // 1. Enforce core structural file validations
         if (!fs.existsSync(summaryPath) || !fs.existsSync(learningPath)) {
-            return res.status(404).json({ error: `Required entry file metrics missing for ${date}.` });
+            return res.status(404).json({ error: `Required entry text files missing for ${date}.` });
         }
 
-        // 2. Read contents natively from directory trees
+        // 2. Read localized content natively
         const summaryText = fs.readFileSync(summaryPath, 'utf8');
         const learningText = fs.readFileSync(learningPath, 'utf8');
         const strategyText = fs.existsSync(strategyPath) ? fs.readFileSync(strategyPath, 'utf8') : null;
 
-        // 3. Scan and map associated asset files from your Supabase Storage Bucket
+        // 3. Scan for media assets inside your Public Supabase Storage Bucket
         const storageFolderPath = `${year}/${month}`;
         let imageUrl = null;
         let videoUrl = null;
@@ -54,20 +60,20 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
             .list(storageFolderPath, { search: date });
 
         if (!error && files) {
-            // Match chart visualization captures
+            // Find and extract chart screenshots
             const imageMatch = files.find(f => f.name.startsWith(date) && /\.(png|jpeg|jpg)$/i.test(f.name));
             if (imageMatch) {
                 imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${imageMatch.name}`;
             }
 
-            // Match short streaming reel formats
+            // Find and extract optional trading videos
             const videoMatch = files.find(f => f.name.startsWith(date) && /\.(mp4|mov)$/i.test(f.name));
             if (videoMatch) {
                 videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${videoMatch.name}`;
             }
         }
 
-        // 4. Return dynamic object payload. Missing optional parameters will remain null.
+        // 4. Return the dynamic data payload
         return res.json({
             date,
             summary: summaryText,
