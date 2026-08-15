@@ -102,6 +102,56 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
             }
         }
 
+        // =========================================================================
+        // 🔄 PASTE THE UPDATED ROOT ASSET BLOCK HERE (REPLACE THE OLD ONE)
+        // =========================================================================
+        try {
+            const dayNum = parseInt(date).toString();
+            
+            // Query root folder list directly using global list params
+            const { data: files, error } = await supabase.storage
+                .from('tracking')
+                .list('', { limit: 100 });
+
+            if (!error && files) {
+                // FORCE BOTH STRINGS TO LOWERCASE: Matches "Aug16_nse.png" and "Aug16_NSE.png" perfectly
+                const imageMatch = files.find(f => {
+                    const fn = f.name.toLowerCase();
+                    return fn.includes(`aug${dayNum}`) && /\.(png|jpeg|jpg)$/i.test(fn);
+                });
+                if (imageMatch) {
+                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${imageMatch.name}`;
+                }
+
+                const videoMatch = files.find(f => {
+                    const fn = f.name.toLowerCase();
+                    return fn.includes(`aug${dayNum}`) && /\.(mp4|mov)$/i.test(fn);
+                });
+                if (videoMatch) {
+                    videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${videoMatch.name}`;
+                }
+            }
+        } catch (storageErr) {
+            console.warn("Supabase root media indexing bypass:", storageErr.message);
+        }
+        // =========================================================================
+
+        // This is the final payload delivery step right before the endpoint route wraps up
+        return res.json({
+            date,
+            isToday,
+            summary: processContent(summaryText, isToday),
+            learning: processContent(learningText, isToday),
+            strategy: processContent(strategyText, isToday), 
+            imageUrl,   
+            videoUrl   
+        });
+
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
         // ✅ FIXED ASSET ENGINE: Leaving your Supabase layout exactly as it is (scanning bucket root folder directly)
         try {
             const dayNum = parseInt(date).toString();
