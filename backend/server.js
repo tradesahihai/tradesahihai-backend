@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const app = express();
 
+// ✅ CORS Layer Configuration
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -38,7 +39,6 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
             };
         };
 
-        // Determine if parameters match current system date
         const todayObj = new Date();
         const currentYear = todayObj.getFullYear().toString();
         const curLongMonth = todayObj.toLocaleString('en-US', { month: 'long' }).toLowerCase();
@@ -76,10 +76,9 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                     const targetFolder = path.join(monthsPath, matchedMonthDir);
                     const filesInDir = fs.readdirSync(targetFolder);
                     
-                    // ✅ MATCHING LOGIC FIX: Generate short prefix from month parameter (e.g., "aug") + numeric string day layout ("16")
                     const shortMonthPrefix = matchedMonthDir.substring(0, 3).toLowerCase(); 
-                    const formattedDayStr = parseInt(date).toString(); // Strips leading zeros if passed
-                    const targetFilePrefix = `${shortMonthPrefix}${formattedDayStr}`; // Creates "aug16"
+                    const formattedDayStr = parseInt(date).toString(); 
+                    const targetFilePrefix = `${shortMonthPrefix}${formattedDayStr}`; 
 
                     const dayFiles = filesInDir.filter(f => {
                         const baseName = f.toLowerCase();
@@ -96,7 +95,6 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                         } else if (lowerName.includes('strategy') || lowerName.includes('strategies')) {
                             strategyText = content;
                         } else {
-                            // Automatically assigns general reports like 'Aug16_NSE.txt' to summary streams
                             summaryText = content;
                         }
                     });
@@ -138,6 +136,34 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
     } catch (err) {
         return res.status(500).json({ error: err.message });
     }
+});
+
+/**
+ * 🛠️ RESTORED ENDPOINT: Legacy Cloud Table Tracking
+ * This fixes the frontend "Cloud tracking stream offline" parsing failure.
+ */
+app.get('/api/posts', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('analysis_posts')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            return res.status(500).json({ error: error.message });
+        }
+        return res.json(data || []);
+    } catch (err) { 
+        return res.status(500).json({ error: err.message }); 
+    }
+});
+
+// ✅ Legacy Login Route
+app.post('/api/login', async (req, res) => {
+    const { email, password } = req.body;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return res.status(401).json({ error: "Invalid credentials." });
+    res.json({ token: data.session.access_token });
 });
 
 const PORT = process.env.PORT || 10000;
