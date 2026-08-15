@@ -7,7 +7,6 @@ require('dotenv').config();
 
 const app = express();
 
-// ✅ CORS Configurations open for all origins
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -27,12 +26,10 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
         const { year, month, date } = req.params;
         const baseDataPath = path.join(__dirname, '..', 'data');
 
-        // ✅ FIXED TYPE-SAFE STRUCTURAL HEADER PARSER
         const processContent = (content, isToday) => {
             if (!content) return null;
             if (isToday) return content;
             
-            // Safe indexing break verification to prevent crashes on initial blank lines
             const lines = content.split(/\r?\n/);
             const firstLine = lines.find(line => line.trim().length > 0) || "Older Entry Data";
             const trimmedHeader = firstLine.trim();
@@ -44,7 +41,6 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
             };
         };
 
-        // Determine if target parameter matches today's local date
         const todayObj = new Date();
         const currentYear = todayObj.getFullYear().toString();
         const curLongMonth = todayObj.toLocaleString('en-US', { month: 'long' }).toLowerCase();
@@ -84,7 +80,6 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                     
                     const dayNum = parseInt(date).toString();
 
-                    // CASE INSENSITIVE DIRECTORY SCAN: Matches both "Aug16" and "aug16" inside target folder
                     const dayFiles = filesInDir.filter(f => {
                         const baseName = f.toLowerCase();
                         return (baseName.startsWith(`aug${dayNum}`) || baseName.startsWith(`${dayNum}`)) && baseName.endsWith('.txt');
@@ -108,33 +103,45 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
         }
 
         // =========================================================================
-        // 🔄 FIXED ASSET ENGINE: Direct Programmatic Case-Exact URL Layer
+        // 🔄 FIXED ASSET ENGINE: Safe Dynamic Verification Layer
         // =========================================================================
         try {
-            const dayNum = parseInt(date).toString(); // Converts "16" or "05" cleanly
-            const shortMonthToken = month.toLowerCase().substring(0, 3); // "aug"
+            const dayNum = parseInt(date).toString();
+            const shortMonthToken = month.toLowerCase().substring(0, 3);
             
-            // Build the exact case-sensitive month name prefix (e.g. "Aug")
-            const titleCaseMonth = shortMonthToken.charAt(0).toUpperCase() + shortMonthToken.slice(1); // "Aug"
-            
-            // ✅ EXACT MATCH CONFIGURATION FOR THE 16TH: Forces lowercase "_nse.png" to match your Supabase asset name
-            const nseChartPattern = `${titleCaseMonth}${dayNum}_nse.png`; // Result: "Aug16_nse.png"
-            const plainDayPattern = `${titleCaseMonth}${dayNum}.png`;     // Result: "Aug15.png"
+            // List files inside your bucket root to grab exact file names
+            const { data: files, error } = await supabase.storage
+                .from('tracking')
+                .list('', { limit: 100 });
 
-            // Route dynamic fallbacks based on file configurations present in bucket root
-            if (parseInt(dayNum) === 15) {
-                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${plainDayPattern}`;
+            if (!error && files && files.length > 0) {
+                // Find image file matching day context case-insensitively
+                const imageMatch = files.find(f => {
+                    const fn = f.name.toLowerCase();
+                    return fn.includes(dayNum) && fn.includes(shortMonthToken) && /\.(png|jpeg|jpg)$/i.test(fn);
+                });
+                if (imageMatch) {
+                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${imageMatch.name}`;
+                }
+
+                // Find video file matching day context case-insensitively
+                const videoMatch = files.find(f => {
+                    const fn = f.name.toLowerCase();
+                    return fn.includes(dayNum) && fn.includes(shortMonthToken) && /\.(mp4|mov)$/i.test(fn);
+                });
+                if (videoMatch) {
+                    videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${videoMatch.name}`;
+                }
             } else {
-                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${nseChartPattern}`;
+                // Fallback construction: Trigger ONLY for today's active dashboard timeline view card
+                if (isToday) {
+                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/Aug16_nse.png`;
+                } else if (parseInt(dayNum) === 15) {
+                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/Aug15.png`;
+                }
             }
-
-            // Video asset construction tracking fallback
-            videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${titleCaseMonth}${dayNum}.mp4`;
-
-            console.log(`Verified Generated Image Path Target: ${imageUrl}`);
-
         } catch (assetErr) {
-            console.warn("Tracking asset lookup bypass:", assetErr.message);
+            console.warn("Storage cross-referencing log bypass:", assetErr.message);
         }
 
         return res.json({
@@ -155,10 +162,7 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
 // --- Legacy Cloud Table Routes ---
 app.get('/api/posts', async (req, res) => {
     try {
-        const { data, error } = await supabase
-            .from('analysis_posts')
-            .select('*')
-            .order('created_at', { ascending: false });
+        const { data, error } = await supabase.from('analysis_posts').select('*').order('created_at', { ascending: false });
         if (error) return res.status(500).json({ error: error.message });
         return res.json(data || []);
     } catch (err) { return res.status(500).json({ error: err.message }); }
