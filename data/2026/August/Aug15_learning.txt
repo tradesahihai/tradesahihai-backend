@@ -1,0 +1,56 @@
+================================================================================
+            PUNJAB NATIONAL BANK (PNB) CHART ANALYSIS & SYSTEM LEARNINGS
+================================================================================
+
+1. THE MECHANICS OF CANDLESTICK FORMATION
+--------------------------------------------------------------------------------
+Every single candle on this 1-day timeframe chart captures a specific day's market 
+action across 4 key data points:
+  * Open  (O) -> Starting price when the stock market opens (9:15 AM).
+  * Close (C) -> Ending price when the stock market shuts (3:30 PM).
+  * High  (H) -> Highest price traded during that session.
+  * Low   (L) -> Lowest price traded during that session.
+
+The color indicates who controlled the day:
+  * GREEN CANDLE (Bullish) -> Close is HIGHER than Open (Buyers won the day).
+  * RED CANDLE   (Bearish) -> Close is LOWER than Open (Sellers won the day).
+  * THE WICKS    (Shadows) -> The lines sticking out represent extreme prices
+                              tested but ultimately rejected by the market.
+
+
+2. OVERALL HISTORICAL TREND ANALYSIS (OT)
+--------------------------------------------------------------------------------
+The chart maps out three distinct market cycles spanning over several months:
+
+  * THE DOWNTREND (Left Section):
+    Characterized by large, continuous red candles dragging the price down 
+    from approximately 130+ INR to below 100 INR. This indicates aggressive 
+    institutional supply and broad selling panic.
+
+  * THE CONSOLIDATION PHASE (Middle Section):
+    The price stabilizes between 95 INR and 113 INR, carving out a base. 
+    Candles become smaller, meaning a state of equilibrium between buyers 
+    and sellers where accumulation takes place.
+
+  * THE MOMENTUM RALLY (Right Section):
+    The asset showcases massive, explosive green candles leading up to the 
+    current price of 118.00 INR. This vertical price movement represents an 
+    inflow of high-volume bullish momentum.
+
+
+3. STRATEGIC TAKEAWAYS AND LEARNINGS
+--------------------------------------------------------------------------------
+  * Support Floors Build Value: 
+    The 95-100 INR area acted as a reliable "Support Zone". Every time the price 
+    dipped here, buying interest picked up, creating long lower wicks.
+
+  * Resistance Ceilings Halt Rallies: 
+    The dashed horizontal line at 122.62 INR is the next major objective. 
+    Historically, the price reversed here; it will act as a psychological barrier 
+    where supply is expected to increase.
+
+  * Body Size Equals Strength: 
+    The recent long-bodied green candles show strong institutional accumulation 
+    with zero retracement, suggesting a high probability of challenging the 
+    122.62 INR overhead resistance line.
+================================================================================
