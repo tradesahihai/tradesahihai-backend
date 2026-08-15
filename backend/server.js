@@ -47,7 +47,9 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
         const targetFolder = path.join(monthsPath, matchedMonthDir);
         const filesInDir = fs.readdirSync(targetFolder);
 
-        const dayFiles = filesInDir.filter(f => f.toLowerCase().startsWith(date.toLowerCase()) && f.endsWith('.txt'));
+        //const dayFiles = filesInDir.filter(f => f.toLowerCase().startsWith(date.toLowerCase()) && f.endsWith('.txt'));
+        // ✅ FIX: Forces BOTH the filename prefix and the extension to lowercase for reliable matching
+        const dayFiles = filesInDir.filter(f => f.toLowerCase().startsWith(date.toLowerCase()) && f.toLowerCase().endsWith('.txt'));
 
         if (dayFiles.length === 0) {
             return res.status(404).json({ error: `No tracking documentation found starting with prefix ${date}.` });
