@@ -133,6 +133,10 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                     videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${videoMatch.name}`;
                 }
             }
+        } catch (assetErr) {
+            console.warn("Tracking asset lookup failed:", assetErr);
+        }
+
         return res.json({
             date,
             isToday,
