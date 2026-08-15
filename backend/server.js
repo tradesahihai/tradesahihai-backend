@@ -7,7 +7,6 @@ require('dotenv').config();
 
 const app = express();
 
-// ✅ CORS Layer Configuration
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -76,13 +75,12 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                     const targetFolder = path.join(monthsPath, matchedMonthDir);
                     const filesInDir = fs.readdirSync(targetFolder);
                     
-                    const shortMonthPrefix = matchedMonthDir.substring(0, 3).toLowerCase(); 
-                    const formattedDayStr = parseInt(date).toString(); 
-                    const targetFilePrefix = `${shortMonthPrefix}${formattedDayStr}`; 
+                    const dayNum = parseInt(date).toString();
 
+                    // ✅ CASE INSENSITIVE ULTRA FIX: Matches both "Aug16" and "aug16" reliably
                     const dayFiles = filesInDir.filter(f => {
                         const baseName = f.toLowerCase();
-                        return baseName.startsWith(targetFilePrefix) && baseName.endsWith('.txt');
+                        return (baseName.startsWith(`aug${dayNum}`) || baseName.startsWith(`${dayNum}`)) && baseName.endsWith('.txt');
                     });
 
                     dayFiles.forEach(fileName => {
@@ -106,18 +104,18 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                             .list(storageFolderPath, { search: date });
 
                         if (!error && files) {
-                            const imageMatch = files.find(f => f.name.toLowerCase().includes(targetFilePrefix) && /\.(png|jpeg|jpg)$/i.test(f.name));
+                            const imageMatch = files.find(f => f.name.toLowerCase().includes(`aug${dayNum}`) && /\.(png|jpeg|jpg)$/i.test(f.name));
                             if (imageMatch) {
                                 imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${imageMatch.name}`;
                             }
 
-                            const videoMatch = files.find(f => f.name.toLowerCase().includes(targetFilePrefix) && /\.(mp4|mov)$/i.test(f.name));
+                            const videoMatch = files.find(f => f.name.toLowerCase().includes(`aug${dayNum}`) && /\.(mp4|mov)$/i.test(f.name));
                             if (videoMatch) {
                                 videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${videoMatch.name}`;
                             }
                         }
                     } catch (storageErr) {
-                        console.warn("Supabase asset processing engine bypass:", storageErr.message);
+                        console.warn("Supabase bypass:", storageErr.message);
                     }
                 }
             }
@@ -138,33 +136,13 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
     }
 });
 
-/**
- * 🛠️ RESTORED ENDPOINT: Legacy Cloud Table Tracking
- * This fixes the frontend "Cloud tracking stream offline" parsing failure.
- */
 app.get('/api/posts', async (req, res) => {
     try {
-        const { data, error } = await supabase
-            .from('analysis_posts')
-            .select('*')
-            .order('created_at', { ascending: false });
-            
-        if (error) {
-            return res.status(500).json({ error: error.message });
-        }
+        const { data, error } = await supabase.from('analysis_posts').select('*').order('created_at', { ascending: false });
+        if (error) return res.status(500).json({ error: error.message });
         return res.json(data || []);
-    } catch (err) { 
-        return res.status(500).json({ error: err.message }); 
-    }
-});
-
-// ✅ Legacy Login Route
-app.post('/api/login', async (req, res) => {
-    const { email, password } = req.body;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return res.status(401).json({ error: "Invalid credentials." });
-    res.json({ token: data.session.access_token });
+    } catch (err) { return res.status(500).json({ error: err.message }); }
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Intelligent Wildcard Engine Active on Port ${PORT}`));
+app.listen(PORT, () => console.log(`Active Engine on Port ${PORT}`));
