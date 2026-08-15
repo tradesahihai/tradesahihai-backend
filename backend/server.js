@@ -25,7 +25,7 @@ const supabase = createClient(supabaseUrl, process.env.SUPABASE_ANON_KEY);
 app.get('/api/analysis/:year/:month/:date', async (req, res) => {
     try {
         const { year, month, date } = req.params;
-        const baseDataPath = path.join(__dirname, 'data');
+        const baseDataPath = path.join(__dirname, '..', 'data');
 
         if (!fs.existsSync(baseDataPath)) {
             return res.status(404).json({ error: "Backend data workspace root folder missing." });
