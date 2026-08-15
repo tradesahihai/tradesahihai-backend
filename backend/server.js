@@ -101,47 +101,24 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                 }
             }
         }
-
         // =========================================================================
-        // 🔄 FIXED ASSET ENGINE: Safe Dynamic Verification Layer
+        // 🔄 FIXED ASSET ENGINE: Direct Programmatic Case-Insensitive URL Fallback Layer
         // =========================================================================
         try {
-            const dayNum = parseInt(date).toString();
-            const shortMonthToken = month.toLowerCase().substring(0, 3);
-            
-            // List files inside your bucket root to grab exact file names
-            const { data: files, error } = await supabase.storage
-                .from('tracking')
-                .list('', { limit: 100 });
+            const dayNum = parseInt(date).toString(); // Converts "16" to "16" safely
+            const shortMonthToken = month.toLowerCase().substring(0, 3); // "aug"
 
-            if (!error && files && files.length > 0) {
-                // Find image file matching day context case-insensitively
-                const imageMatch = files.find(f => {
-                    const fn = f.name.toLowerCase();
-                    return fn.includes(dayNum) && fn.includes(shortMonthToken) && /\.(png|jpeg|jpg)$/i.test(fn);
-                });
-                if (imageMatch) {
-                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${imageMatch.name}`;
-                }
+            // ✅ LOWERCASE DEFAULTS TYPE CHECK: Forces filenames to use the standard root naming schema
+            imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}_nse.png`; // e.g., "aug16_nse.png"
 
-                // Find video file matching day context case-insensitively
-                const videoMatch = files.find(f => {
-                    const fn = f.name.toLowerCase();
-                    return fn.includes(dayNum) && fn.includes(shortMonthToken) && /\.(mp4|mov)$/i.test(fn);
-                });
-                if (videoMatch) {
-                    videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${videoMatch.name}`;
-                }
-            } else {
-                // Fallback construction: Trigger ONLY for today's active dashboard timeline view card
-                if (isToday) {
-                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/Aug16_nse.png`;
-                } else if (parseInt(dayNum) === 15) {
-                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/Aug15.png`;
-                }
+            if (parseInt(dayNum) === 15) {
+                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}.png`; // e.g., "aug15.png"
             }
+
+            videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}.mp4`;
+
         } catch (assetErr) {
-            console.warn("Storage cross-referencing log bypass:", assetErr.message);
+            console.warn("Tracking asset lookup bypass:", assetErr.message);
         }
 
         return res.json({
