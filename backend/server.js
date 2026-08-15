@@ -27,14 +27,19 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
         const { year, month, date } = req.params;
         const baseDataPath = path.join(__dirname, '..', 'data');
 
+        // ✅ FIXED TYPE-SAFE STRUCTURAL HEADER PARSER
         const processContent = (content, isToday) => {
             if (!content) return null;
             if (isToday) return content;
             
-            const firstLine = content.split(/\r?\n/)[0].trim();
+            // Fixed index breakdown check to prevent throwing errors on empty text log lines
+            const lines = content.split(/\r?\n/);
+            const firstLine = lines.find(line => line.trim().length > 0) || "Older Entry Data";
+            const trimmedHeader = firstLine.trim();
+
             return {
-                header: firstLine || "Older Entry Data",
-                hasMore: content.trim().length > firstLine.length,
+                header: trimmedHeader,
+                hasMore: content.trim().length > trimmedHeader.length,
                 fullContent: content
             };
         };
@@ -101,23 +106,26 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                 }
             }
         }
-
         // =========================================================================
         // 🔄 FIXED ASSET ENGINE: Direct Root Bucket Substring Search Layer
         // =========================================================================
         try {
             const dayNum = parseInt(date).toString(); // Converts "16" or "05" cleanly
             
+            // Extracts month context from input parameter to form a strict name bound (e.g., "aug")
+            const shortMonthToken = month.toLowerCase().substring(0, 3);
+            const strictDateKey = `${shortMonthToken}${dayNum}`; // Formulates "aug16" or "aug15"
+
             // Query root folder list directly using global list params
             const { data: files, error } = await supabase.storage
                 .from('tracking')
                 .list('', { limit: 100 });
 
             if (!error && files) {
-                // ✅ RESILIENT INTERSECT CHECK: Matches "Aug16_nse.png", "16_chart.png", or "aug16.jpg" flawlessly
+                // ✅ STRICT MEDIA INTERSECT CHECK: Locks case-insensitively onto "aug16" or "aug15"
                 const imageMatch = files.find(f => {
                     const fn = f.name.toLowerCase();
-                    return fn.includes(dayNum) && /\.(png|jpeg|jpg)$/i.test(fn);
+                    return fn.includes(strictDateKey) && /\.(png|jpeg|jpg)$/i.test(fn);
                 });
                 
                 if (imageMatch) {
@@ -126,7 +134,7 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
 
                 const videoMatch = files.find(f => {
                     const fn = f.name.toLowerCase();
-                    return fn.includes(dayNum) && /\.(mp4|mov)$/i.test(fn);
+                    return fn.includes(strictDateKey) && /\.(mp4|mov)$/i.test(fn);
                 });
                 
                 if (videoMatch) {
