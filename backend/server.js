@@ -146,43 +146,6 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
             imageUrl,   
             videoUrl   
         });
-
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
-});
-
-        // ✅ FIXED ASSET ENGINE: Leaving your Supabase layout exactly as it is (scanning bucket root folder directly)
-        try {
-            const dayNum = parseInt(date).toString();
-            
-            // Query root folder list directly using global list params
-            const { data: files, error } = await supabase.storage
-                .from('tracking')
-                .list('', { limit: 100 });
-
-            if (!error && files) {
-                // Find matching media items present at the root baseline level of the bucket
-                const imageMatch = files.find(f => {
-                    const fn = f.name.toLowerCase();
-                    return (fn.startsWith(`aug${dayNum}`) || fn.startsWith(`${dayNum}`)) && /\.(png|jpeg|jpg)$/i.test(fn);
-                });
-                if (imageMatch) {
-                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${imageMatch.name}`;
-                }
-
-                const videoMatch = files.find(f => {
-                    const fn = f.name.toLowerCase();
-                    return (fn.startsWith(`aug${dayNum}`) || fn.startsWith(`${dayNum}`)) && /\.(mp4|mov)$/i.test(fn);
-                });
-                if (videoMatch) {
-                    videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${videoMatch.name}`;
-                }
-            }
-        } catch (storageErr) {
-            console.warn("Supabase root media indexing bypass:", storageErr.message);
-        }
-
         return res.json({
             date,
             isToday,
