@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const app = express();
 
+// ✅ CORS Configurations open for all origins
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -41,6 +42,7 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
             };
         };
 
+        // Determine if target parameter matches today's local date
         const todayObj = new Date();
         const currentYear = todayObj.getFullYear().toString();
         const curLongMonth = todayObj.toLocaleString('en-US', { month: 'long' }).toLowerCase();
@@ -101,24 +103,53 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                 }
             }
         }
+
         // =========================================================================
-        // 🔄 FIXED ASSET ENGINE: Direct Programmatic Case-Insensitive URL Fallback Layer
+        // 🔄 ASSET VERIFICATION LAYER: Ignore completely if not found
         // =========================================================================
         try {
-            const dayNum = parseInt(date).toString(); // Converts "16" to "16" safely
-            const shortMonthToken = month.toLowerCase().substring(0, 3); // "aug"
+            const dayNum = parseInt(date).toString();
+            const shortMonthToken = month.toLowerCase().substring(0, 3);
+            const titleCaseMonth = shortMonthToken.charAt(0).toUpperCase() + shortMonthToken.slice(1);
 
-            // ✅ LOWERCASE DEFAULTS TYPE CHECK: Forces filenames to use the standard root naming schema
-            imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}_nse.png`; // e.g., "aug16_nse.png"
+            // Create an array of possible case variations based on your dynamic filenames
+            const prospectiveImages = [
+                `${supabaseUrl}/storage/v1/object/public/tracking/${titleCaseMonth}${dayNum}_nse.png`,
+                `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}_nse.png`,
+                `${supabaseUrl}/storage/v1/object/public/tracking/${titleCaseMonth}${dayNum}.png`,
+                `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}.png`
+            ];
 
-            if (parseInt(dayNum) === 15) {
-                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}.png`; // e.g., "aug15.png"
-            }
+            const prospectiveVideos = [
+                `${supabaseUrl}/storage/v1/object/public/tracking/${titleCaseMonth}${dayNum}.mp4`,
+                `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}.mp4`
+            ];
 
-            videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${shortMonthToken}${dayNum}.mp4`;
+            // Helper function to verify url availability before serving it to the client
+            const verifyUrl = async (urlArray) => {
+                for (const url of urlArray) {
+                    try {
+                        const controller = new AbortController();
+                        const id = setTimeout(() => controller.abort(), 1200); // Rapid timeout flag
+                        
+                        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+                        clearTimeout(id);
+                        
+                        if (response.ok && response.status !== 400) {
+                            return url; // Match found! Stop looping and return valid url
+                        }
+                    } catch {
+                        continue;
+                    }
+                }
+                return null; // File not found across any file naming variation -> ignore it cleanly
+            };
+
+            imageUrl = await verifyUrl(prospectiveImages);
+            videoUrl = await verifyUrl(prospectiveVideos);
 
         } catch (assetErr) {
-            console.warn("Tracking asset lookup bypass:", assetErr.message);
+            console.warn("Storage verification bypassed:", assetErr.message);
         }
 
         return res.json({
