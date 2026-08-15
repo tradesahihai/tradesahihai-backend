@@ -1,1 +1,49 @@
 
+======================================================================
+PUNJAB NATIONAL BANK (PNB) STOCK CHART ANALYSIS & CANDLESTICKS EXPLAINED
+======================================================================
+
+1. WHAT IS A CANDLESTICK?
+-------------------------
+Every individual candle on a chart tells the visual story of a single day
+of trading. Each shape looks like a real candle with a thick block (the body)
+and thin lines sticking out of the top and bottom (the wicks or shadows). 
+
+Each candle provides exactly four data points from that trading day:
+* Open:  The stock price when the market opened at 9:15 AM.
+* Close: The stock price when the market closed at 3:30 PM.
+* High:  The absolute highest price traded during that day.
+* Low:   The absolute lowest price traded during that day.
+
+
+2. THE COLOR CODE (HOW A CANDLE FORMS)
+--------------------------------------
+The candle colors reveal who won the daily battle between the Buyers 
+(pushing prices up) and the Sellers (dragging prices down).
+
+A. Green Candle (Buyers Won)
+   * Core Rule: The stock price closed HIGHER than it opened.
+   * Body: The bottom of the solid rectangle is the Open price, 
+     and the top of the rectangle is the Close price.
+   * Wicks: The top point of the line is the High; the bottom point is the Low.
+
+B. Red Candle (Sellers Won)
+   * Core Rule: The stock price closed LOWER than it opened.
+   * Body: The top of the solid rectangle is the Open price, 
+     and the bottom of the rectangle is the Close price.
+   * Wicks: The top point of the line is the High; the bottom point is the Low.
+
+
+3. CHART ANALYSIS FOR PNB
+--------------------------
+The chart maps out the multi-month trajectory of Punjab National Bank:
+
+* The Downward Trend (Left to Middle): From February to mid-April, heavy 
+  selling pressure is marked by consecutive tall red candles. This drove 
+  the price down from roughly 130 INR to below 100 INR.
+* The Stabilization (Middle to Right): Around May and June, the price stabilized 
+  and consolidated. Long lower wicks in this region highlight active buying interest 
+  whenever the stock dipped too low, preventing deeper falls.
+* The Bullish Breakout (Far Right): Entering August, massive buying pressure is 
+  visible via long green candles lifting the stock sharply up to its current 
+  position at 118.00 INR, rapidly moving toward the dashed resistance line at 122.62.
