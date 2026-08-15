@@ -103,10 +103,10 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
         }
 
         // =========================================================================
-        // 🔄 PASTE THE UPDATED ROOT ASSET BLOCK HERE (REPLACE THE OLD ONE)
+        // 🔄 FIXED ASSET ENGINE: Direct Root Bucket Substring Search Layer
         // =========================================================================
         try {
-            const dayNum = parseInt(date).toString();
+            const dayNum = parseInt(date).toString(); // Converts "16" or "05" cleanly
             
             // Query root folder list directly using global list params
             const { data: files, error } = await supabase.storage
@@ -114,38 +114,25 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
                 .list('', { limit: 100 });
 
             if (!error && files) {
-                // FORCE BOTH STRINGS TO LOWERCASE: Matches "Aug16_nse.png" and "Aug16_NSE.png" perfectly
+                // ✅ RESILIENT INTERSECT CHECK: Matches "Aug16_nse.png", "16_chart.png", or "aug16.jpg" flawlessly
                 const imageMatch = files.find(f => {
                     const fn = f.name.toLowerCase();
-                    return fn.includes(`aug${dayNum}`) && /\.(png|jpeg|jpg)$/i.test(fn);
+                    return fn.includes(dayNum) && /\.(png|jpeg|jpg)$/i.test(fn);
                 });
+                
                 if (imageMatch) {
                     imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${imageMatch.name}`;
                 }
 
                 const videoMatch = files.find(f => {
                     const fn = f.name.toLowerCase();
-                    return fn.includes(`aug${dayNum}`) && /\.(mp4|mov)$/i.test(fn);
+                    return fn.includes(dayNum) && /\.(mp4|mov)$/i.test(fn);
                 });
+                
                 if (videoMatch) {
                     videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${videoMatch.name}`;
                 }
             }
-        } catch (storageErr) {
-            console.warn("Supabase root media indexing bypass:", storageErr.message);
-        }
-        // =========================================================================
-
-        // This is the final payload delivery step right before the endpoint route wraps up
-        return res.json({
-            date,
-            isToday,
-            summary: processContent(summaryText, isToday),
-            learning: processContent(learningText, isToday),
-            strategy: processContent(strategyText, isToday), 
-            imageUrl,   
-            videoUrl   
-        });
         return res.json({
             date,
             isToday,
