@@ -1,0 +1,46 @@
+NIFTY 50 INDEX - TECHNICAL CHART REPORT
+Generated on: August 16, 2026
+
+================================================================================
+1. MARKET STRUCTURE & CORE INDICATORS
+================================================================================
+* Automated Signals: The green "B" tags (Buy) and red "S" tags (Sell) are 
+  generated via an automated structural zigzag algorithm tracking minor 
+  swing trends.
+* Macro Trendline Break: A prominent green descending macro trendline dictated 
+  price action from January through April. The recent clean breakout above this 
+  level shifts the primary structural bias from bearish back to neutral/bullish.
+* Consolidation Pattern: On the far right, price action is coiling inside a clear 
+  Symmetric Triangle (or micro wedge) bounded by an upper descending resistance 
+  and a lower ascending support line (red line).
+
+================================================================================
+2. CANDLESTICK PATTERN FORMATION
+================================================================================
+* Location: Far right edge (Early August area)
+* Pattern Identity: Bullish Harami Cross / Inside Bar Variant
+* Formation Profile: A prominent red bearish candle is followed immediately by 
+  a highly compressed, tiny candle (spinning top/Doji). The entire body and 
+  range of this smaller candle rests completely inside the real body of the 
+  preceding large red candle. 
+* Market Psychology: This contraction patterns implies immediate selling 
+  exhaustion. It shows that supply has dried up precisely at the trendline 
+  support level, compressing volatility ahead of an impending expansion.
+
+================================================================================
+3. STRATEGIC ENTRY & EXECUTION TARGETS
+================================================================================
+* Current Market Index: 24,366
+* Key Baseline Pivot: 24,073 (Dashed horizontal support level)
+* Bullish Trigger Scenario: A definitive daily candle close breaking above the 
+  upper triangle resistance (~24,550 area) confirms a continuation breakout.
+* Bearish Negation Scenario: A decisive daily slide below the structural floor 
+  (~24,000) invalidates the setup and opens up deeper correction levels.
+
+================================================================================
+DISCLAIMER
+================================================================================
+This structured text breakdown is strictly intended for educational study and 
+simulation tracking purposes, not a recommendation to execute financial market 
+positions.
+
