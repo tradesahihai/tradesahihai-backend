@@ -7,10 +7,14 @@ require('dotenv').config();
 
 const app = express();
 
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 // ✅ CORS Layer Setup
 =======
 >>>>>>> Stashed changes
+=======
+// ✅ CORS Configurations open for all origins
+>>>>>>> parent of 43ce33f (Merge branch 'main' of https://github.com/tradesahihai/tradesahihai-backend)
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -27,6 +31,7 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
         const { year, month, date } = req.params;
         const baseDataPath = path.join(__dirname, '..', 'data');
 
+<<<<<<< HEAD
         const processContent = (content, isToday) => {
             if (!content) return null;
             if (isToday) return content;
@@ -110,35 +115,86 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
             const shortMonthToken = folderMonth.toLowerCase().substring(0, 3);
 <<<<<<< Updated upstream
             const titleCaseMonth = shortMonthToken.charAt(0).toUpperCase() + shortMonthToken.slice(1); // Result: "Aug"
+=======
+        if (!fs.existsSync(baseDataPath)) {
+            return res.status(404).json({ error: "Backend data workspace root folder missing." });
+        }
 
-            // Target storage path matches your exact structure layout: "2026/August"
-            const storageFolderPath = `${folderYear}/${folderMonth}`;
+        const yearsInDir = fs.readdirSync(baseDataPath);
+        const matchedYearDir = yearsInDir.find(y => y.toLowerCase() === year.toLowerCase());
+        if (!matchedYearDir) {
+            return res.status(404).json({ error: `Year workspace directory '${year}' not found.` });
+        }
+>>>>>>> parent of 43ce33f (Merge branch 'main' of https://github.com/tradesahihai/tradesahihai-backend)
 
-            // Create expected file variations cleanly
-            const nsePattern = `${titleCaseMonth}${dayNum}_nse.png`; // Aug16_nse.png
-            const plainPattern = `${titleCaseMonth}${dayNum}.png`;   // Aug15.png
+        const monthsPath = path.join(baseDataPath, matchedYearDir);
+        const monthsInDir = fs.readdirSync(monthsPath);
+        const matchedMonthDir = monthsInDir.find(m => m.toLowerCase() === month.toLowerCase());
+        if (!matchedMonthDir) {
+            return res.status(404).json({ error: `Month workspace directory '${month}' not found.` });
+        }
 
-            // Clean fallback router selector matching your disk files explicitly
-            if (parseInt(dayNum) === 15) {
-                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${plainPattern}`;
-            } else {
-                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${nsePattern}`;
+        const targetFolder = path.join(monthsPath, matchedMonthDir);
+        const filesInDir = fs.readdirSync(targetFolder);
+
+        const dayFiles = filesInDir.filter(f => f.toLowerCase().startsWith(date.toLowerCase()) && f.endsWith('.txt'));
+
+        if (dayFiles.length === 0) {
+            return res.status(404).json({ error: `No tracking documentation found starting with prefix ${date}.` });
+        }
+
+        let summaryText = null;
+        let learningText = null;
+        let strategyText = null;
+
+        dayFiles.forEach(fileName => {
+            const lowerName = fileName.toLowerCase();
+            const fullFilePath = path.join(targetFolder, fileName);
+            const content = fs.readFileSync(fullFilePath, 'utf8');
+
+            if (lowerName.includes('learning')) {
+                learningText = content;
+            } else if (lowerName.includes('strategy') || lowerName.includes('strategies')) {
+                strategyText = content;
+            } else if (
+                !lowerName.includes('reel') && 
+                !lowerName.includes('trending') && 
+                !lowerName.includes('video')
+            ) {
+                summaryText = content;
             }
+        });
 
-            // Map corresponding walkthrough reel video track layout
-            videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${titleCaseMonth}${dayNum}.mp4`;
+        const storageFolderPath = `${matchedYearDir}/${matchedMonthDir}`;
+        let imageUrl = null;
+        let videoUrl = null;
 
-        } catch (assetErr) {
-            console.warn("Storage path fallback override failed:", assetErr.message);
+        try {
+            const { data: files, error } = await supabase.storage
+                .from('tracking')
+                .list(storageFolderPath, { search: date });
+
+            if (!error && files) {
+                const imageMatch = files.find(f => f.name.toLowerCase().startsWith(date.toLowerCase()) && /\.(png|jpeg|jpg)$/i.test(f.name));
+                if (imageMatch) {
+                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${imageMatch.name}`;
+                }
+
+                const videoMatch = files.find(f => f.name.toLowerCase().startsWith(date.toLowerCase()) && /\.(mp4|mov)$/i.test(f.name));
+                if (videoMatch) {
+                    videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${videoMatch.name}`;
+                }
+            }
+        } catch (storageErr) {
+            console.warn("Supabase asset processing error skipped safely:", storageErr.message);
         }
 
         return res.json({
             date,
-            isToday,
-            summary: processContent(summaryText, isToday),
-            learning: processContent(learningText, isToday),
-            strategy: processContent(strategyText, isToday), 
+            summary: summaryText,
+            learning: learningText,
             imageUrl,   
+            strategy: strategyText, 
             videoUrl   
 =======
             const titleCaseMonth = shortMonthToken.charAt(0).toUpperCase() + shortMonthToken.slice(1);
@@ -168,16 +224,30 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
     }
 });
 
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 // --- Legacy Cloud Table Routes ---
 =======
 >>>>>>> Stashed changes
+=======
+// --- Legacy Cloud Table Routes (Preserved Natively) ---
+>>>>>>> parent of 43ce33f (Merge branch 'main' of https://github.com/tradesahihai/tradesahihai-backend)
 app.get('/api/posts', async (req, res) => {
     try {
-        const { data, error } = await supabase.from('analysis_posts').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabase
+            .from('analysis_posts')
+            .select('*')
+            .order('created_at', { ascending: false });
         if (error) return res.status(500).json({ error: error.message });
-        return res.json(data || []);
-    } catch (err) { return res.status(500).json({ error: err.message }); }
+        res.json(data || []);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/login', async (req, res) => {
+    const { email, password } = req.body;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return res.status(401).json({ error: "Invalid credentials." });
+    res.json({ token: data.session.access_token });
 });
 
 const PORT = process.env.PORT || 10000;
