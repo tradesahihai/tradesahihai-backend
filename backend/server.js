@@ -7,7 +7,10 @@ require('dotenv').config();
 
 const app = express();
 
+<<<<<<< Updated upstream
 // ✅ CORS Layer Setup
+=======
+>>>>>>> Stashed changes
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -19,9 +22,6 @@ app.use(express.json());
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabase = createClient(supabaseUrl, process.env.SUPABASE_ANON_KEY);
 
-/**
- * 📈 INTELLIGENT WILDCARD ENDPOINT: Flat-File Analysis Engine
- */
 app.get('/api/analysis/:year/:month/:date', async (req, res) => {
     try {
         const { year, month, date } = req.params;
@@ -54,22 +54,34 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
         let summaryText = null; let learningText = null; let strategyText = null;
         let imageUrl = null; let videoUrl = null;
 
+<<<<<<< Updated upstream
         // Establish safe folder variables with case fallbacks matching your storage paths
         let folderYear = year; 
         let folderMonth = month; 
+=======
+        let folderYear = year; let folderMonth = month;
+>>>>>>> Stashed changes
 
         if (fs.existsSync(baseDataPath)) {
             const yearsInDir = fs.readdirSync(baseDataPath);
             const matchedYearDir = yearsInDir.find(y => y.toLowerCase() === year.toLowerCase());
 
             if (matchedYearDir) {
+<<<<<<< Updated upstream
                 folderYear = matchedYearDir; // Capture exact casing (e.g. "2026")
+=======
+                folderYear = matchedYearDir;
+>>>>>>> Stashed changes
                 const monthsPath = path.join(baseDataPath, matchedYearDir);
                 const monthsInDir = fs.readdirSync(monthsPath);
                 const matchedMonthDir = monthsInDir.find(m => m.toLowerCase() === inputMonth || m.toLowerCase().startsWith(inputMonth));
 
                 if (matchedMonthDir) {
+<<<<<<< Updated upstream
                     folderMonth = matchedMonthDir; // Capture exact casing (e.g. "August")
+=======
+                    folderMonth = matchedMonthDir;
+>>>>>>> Stashed changes
                     const targetFolder = path.join(monthsPath, matchedMonthDir);
                     const filesInDir = fs.readdirSync(targetFolder);
                     const dayNum = parseInt(date).toString();
@@ -96,6 +108,7 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
         try {
             const dayNum = parseInt(date).toString();
             const shortMonthToken = folderMonth.toLowerCase().substring(0, 3);
+<<<<<<< Updated upstream
             const titleCaseMonth = shortMonthToken.charAt(0).toUpperCase() + shortMonthToken.slice(1); // Result: "Aug"
 
             // Target storage path matches your exact structure layout: "2026/August"
@@ -127,6 +140,27 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
             strategy: processContent(strategyText, isToday), 
             imageUrl,   
             videoUrl   
+=======
+            const titleCaseMonth = shortMonthToken.charAt(0).toUpperCase() + shortMonthToken.slice(1);
+            const storageFolderPath = `${folderYear}/${folderMonth}`;
+
+            if (parseInt(dayNum) === 15) {
+                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${titleCaseMonth}${dayNum}.png`;
+            } else {
+                imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${titleCaseMonth}${dayNum}_nse.png`;
+            }
+            videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${titleCaseMonth}${dayNum}.mp4`;
+        } catch (assetErr) {
+            console.warn("Storage path fallback override failed.");
+        }
+
+        return res.json({
+            date, isToday,
+            summary: processContent(summaryText, isToday),
+            learning: processContent(learningText, isToday),
+            strategy: processContent(strategyText, isToday),
+            imageUrl, videoUrl
+>>>>>>> Stashed changes
         });
 
     } catch (err) {
@@ -134,7 +168,10 @@ app.get('/api/analysis/:year/:month/:date', async (req, res) => {
     }
 });
 
+<<<<<<< Updated upstream
 // --- Legacy Cloud Table Routes ---
+=======
+>>>>>>> Stashed changes
 app.get('/api/posts', async (req, res) => {
     try {
         const { data, error } = await supabase.from('analysis_posts').select('*').order('created_at', { ascending: false });
@@ -144,4 +181,4 @@ app.get('/api/posts', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Intelligent Wildcard Engine Active on Port ${PORT}`));
+app.listen(PORT, () => console.log(`Intelligent Engine Active on Port ${PORT}`));
