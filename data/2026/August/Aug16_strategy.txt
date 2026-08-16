@@ -1,0 +1,49 @@
+FILENAME: 9_21_ema_strategy.txt
+DATE: August 16, 2026
+TOPIC: 9 vs 21 EMA Trend Following Strategy
+
+========================================================================
+CORE CONCEPT: MOMENTUM CROSSOVER
+========================================================================
+OBJECTIVE: 
+Capture the "meat" of a trend by waiting for the fast momentum (9) 
+to overtake the slower trend (21).
+
+INDICATORS:
+1. 9 EMA (Exponential Moving Average) - Color: Green (Fast)
+2. 21 EMA (Exponential Moving Average) - Color: Red (Slow)
+
+========================================================================
+THE SIGNALS
+========================================================================
+
+[ ] BULLISH ENTRY (LONG)
+    1. Wait for the 9 EMA to cross ABOVE the 21 EMA.
+    2. CONFIRMATION: The candle causing the cross must close strong.
+    3. RIDE: Stay in the trade as long as Price > 9 EMA.
+
+[ ] BEARISH ENTRY (SHORT)
+    1. Wait for the 9 EMA to cross BELOW the 21 EMA.
+    2. CONFIRMATION: The candle causing the cross must close red.
+    3. RIDE: Stay in the trade as long as Price < 9 EMA.
+
+========================================================================
+CRITICAL FAILURE CONDITION: "THE CHOP"
+========================================================================
+WHERE IT FAILS: 
+Sideways / Ranging Markets.
+
+IDENTIFICATION:
+- The 9 and 21 lines are moving horizontally (flat).
+- The lines are constantly crossing each other (Tangled).
+- Price is stuck between Support and Resistance.
+
+RULE OF THUMB:
+If there is no clear angle (slope) to the lines, DO NOT TOUCH IT.
+This strategy requires a TREND to work.
+
+========================================================================
+EXIT STRATEGY (TAKE PROFIT)
+========================================================================
+1. Aggressive: Exit when the candle closes back below the 9 EMA.
+2. Conservative: Exit when the 9 EMA crosses back below the 21 EMA.
