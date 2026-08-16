@@ -1,0 +1,71 @@
+FILENAME: hammer_stock_strategy.txt
+DATE: August 16, 2026
+TOPIC: Hammer Candlestick Strategy for Stock Trading
+
+========================================================================
+STRATEGY OVERVIEW: TRADING THE HAMMER
+========================================================================
+A Hammer is a bullish reversal pattern that forms during a downtrend. 
+In stock trading, unlike crypto, we rely heavily on "Volume" and "Gap" 
+mechanics to validate the move.
+
+The Psychology: 
+1. Sellers push price down (Long Lower Wick).
+2. Buyers aggressively reject low prices.
+3. Price closes near the open (Small Body).
+
+========================================================================
+PHASE 1: THE SETUP (CONTEXT IS KING)
+========================================================================
+CRITICAL RULE: Do not buy a hammer in a sideways market.
+
+[ ] 1. EXISTING DOWNTREND
+    - Ensure the stock has dropped for 3-5 consecutive days.
+    - OR the stock has hit a major support level.
+
+[ ] 2. THE HAMMER SHAPE
+    - Lower wick must be at least 2x the size of the body.
+    - Little to no upper wick.
+    - Color: Green is strongest, Red is acceptable if other factors align.
+
+========================================================================
+PHASE 2: THE CONFIRMATION (AVOIDING TRAPS)
+========================================================================
+In stocks, a hammer alone is not a buy signal. You need two confirmations.
+
+[ ] 1. VOLUME SPIKE (The Fuel)
+    - Check the volume bar on the day the Hammer forms.
+    - It must be HIGHER than the average volume of the previous few days.
+    - High Volume + Long Wick = Institutional Buying (Smart Money).
+
+[ ] 2. THE "GREEN LIGHT" CANDLE (The Trigger)
+    - Do NOT buy on the Hammer day.
+    - Wait for the NEXT trading day.
+    - The price must close HIGHER than the Hammer's high.
+
+========================================================================
+PHASE 3: EXECUTION GUIDE
+========================================================================
+
+ENTRY POINT (BUY):
+- Enter the trade the moment price breaks ABOVE the High of the Hammer candle.
+
+STOP LOSS (PROTECTION):
+- Place a Hard Stop just BELOW the Lowest Point (Wick) of the Hammer.
+- Logic: If price drops below the wick, the reversal failed. Get out.
+
+PROFIT TARGET (EXIT):
+- Aim for a 1:2 Risk/Reward Ratio.
+- Formula: (Entry Price - Stop Loss) * 2 + Entry Price = Target.
+
+========================================================================
+WARNING: THE HANGING MAN TRAP
+========================================================================
+If you see a "Hammer" shape at the TOP of an uptrend (after weeks of 
+green days), it is NOT a Hammer.
+
+- It is called a HANGING MAN.
+- It signals a potential crash.
+- DO NOT BUY.
+
+========================================================================
