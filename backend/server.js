@@ -1,286 +1,385 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
-//require('dotenv').config();
-try {
-    require('dotenv').config();
-} catch (e) {
-    // In production (Render), environment variables are provided natively via process.env
-}
-const { createClient } = require('@supabase/supabase-js');
+const { XMLParser } = require('fast-xml-parser');
 
 const app = express();
+const PORT = 3000;
 
-// Enable CORS for https://tradesahihai.github.io
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
+app.use(cors());
 app.use(express.json());
+app.use(express.static(__dirname));
 
-// Supabase Configuration
-const supabaseUrl = process.env.SUPABASE_URL || "https://tieaswmnzytdeuatkmmq.supabase.co";
-const supabaseKey = process.env.SUPABASE_KEY || "sb_secret_q10iY-_Fa-ZjbpdL4XX0BQ_WE9arRfS";
-const supabase = createClient(supabaseUrl, supabaseKey);
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_'
+});
 
-// Root Healthcheck
-app.get('/', (req, res) => {
-    res.json({
-        status: 'online',
-        service: 'Trade Sahi Hai - Intelligent Analytics & RSS Proxy Engine',
-        timestamp: new Date().toISOString(),
-        version: '2.0.0'
+// In-memory cache for news feeds with 5-minute TTL
+const newsCache = {
+  moneycontrol: { data: null, lastFetched: 0 },
+  yahoofinance: { data: null, lastFetched: 0 },
+  nseIndices: { data: null, lastFetched: 0 },
+  nseChart: {}
+};
+
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const NSE_CACHE_TTL_MS = 60 * 1000; // 1 min cache for live NSE quotes
+
+let nseCookie = '';
+let nseCookieExpiry = 0;
+
+async function getNseCookie() {
+  const now = Date.now();
+  if (nseCookie && now < nseCookieExpiry) {
+    return nseCookie;
+  }
+  try {
+    const res = await fetch('https://www.nseindia.com', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(5000)
     });
-});
-
-// Resolve the 'data' directory (supports running from root or backend/ subfolder)
-function getDataDirectory() {
-    const rootData = path.join(__dirname, 'data');
-    const parentData = path.join(__dirname, '../data');
-    if (fs.existsSync(rootData)) return rootData;
-    if (fs.existsSync(parentData)) return parentData;
-    return rootData;
-}
-
-function formatTextContent(raw) {
-    if (!raw) return "";
-    return raw.trim();
-}
-
-/**
- * 📊 API: Fetch Daily Analysis & Historical Documentation by Date
- * Example: GET /api/analysis/2026/August/Aug16
- */
-app.get('/api/analysis/:year/:month/:date', async (req, res) => {
-    try {
-        const { year, month, date } = req.params;
-        const baseDataPath = getDataDirectory();
-
-        let summaryText = null;
-        let learningText = null;
-        let strategyText = null;
-        let reelsText = null;
-
-        if (fs.existsSync(baseDataPath)) {
-            const yearsInDir = fs.readdirSync(baseDataPath);
-            const matchedYearDir = yearsInDir.find(y => y.toLowerCase() === year.toLowerCase());
-
-            if (matchedYearDir) {
-                const monthsPath = path.join(baseDataPath, matchedYearDir);
-                if (fs.existsSync(monthsPath)) {
-                    const monthsInDir = fs.readdirSync(monthsPath);
-                    const matchedMonthDir = monthsInDir.find(m => 
-                        m.toLowerCase() === month.toLowerCase() || 
-                        m.toLowerCase().startsWith(month.toLowerCase())
-                    );
-
-                    if (matchedMonthDir) {
-                        const targetFolder = path.join(monthsPath, matchedMonthDir);
-                        const filesInDir = fs.readdirSync(targetFolder);
-
-                        const searchPrefix = date.toLowerCase();
-                        const matchedFiles = filesInDir.filter(f => 
-                            f.toLowerCase().startsWith(searchPrefix) && f.endsWith('.txt')
-                        );
-
-                        matchedFiles.forEach(fileName => {
-                            const lowerName = fileName.toLowerCase();
-                            const content = fs.readFileSync(path.join(targetFolder, fileName), 'utf8');
-
-                            if (lowerName.includes('learning')) {
-                                learningText = content;
-                            } else if (lowerName.includes('strategy') || lowerName.includes('strategies')) {
-                                strategyText = content;
-                            } else if (lowerName.includes('reel') || lowerName.includes('video')) {
-                                reelsText = content;
-                            } else {
-                                summaryText = content;
-                            }
-                        });
-                    }
-                }
-            }
-        }
-
-        const storageFolderPath = `${year}/${month}`;
-        let imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${date}.png`;
-        let videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${date}.mp4`;
-
-        try {
-            const { data: files } = await supabase.storage
-                .from('tracking')
-                .list(storageFolderPath, { search: date });
-
-            if (files && files.length > 0) {
-                const img = files.find(f => /\.(png|jpeg|jpg)$/i.test(f.name));
-                if (img) {
-                    imageUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${img.name}`;
-                }
-                const vid = files.find(f => /\.(mp4|mov)$/i.test(f.name));
-                if (vid) {
-                    videoUrl = `${supabaseUrl}/storage/v1/object/public/tracking/${storageFolderPath}/${vid.name}`;
-                }
-            }
-        } catch (storageErr) {
-            console.warn("Storage notice:", storageErr.message);
-        }
-
-        return res.json({
-            year,
-            month,
-            date,
-            summary: formatTextContent(summaryText),
-            learning: formatTextContent(learningText),
-            strategy: formatTextContent(strategyText),
-            reels: formatTextContent(reelsText),
-            imageUrl,
-            videoUrl
-        });
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
+    const setCookie = res.headers.get('set-cookie');
+    if (setCookie) {
+      nseCookie = setCookie.split(',').map(c => c.split(';')[0]).join('; ');
+      nseCookieExpiry = now + 4 * 60 * 1000;
     }
+    return nseCookie;
+  } catch (err) {
+    console.warn('NSE cookie fetch failed:', err.message);
+    return '';
+  }
+}
+
+// NSE Official Indices Route
+app.get('/api/nse/indices', async (req, res) => {
+  const now = Date.now();
+  if (newsCache.nseIndices.data && (now - newsCache.nseIndices.lastFetched < NSE_CACHE_TTL_MS)) {
+    return res.json({ success: true, source: 'NSE India Official (Cached)', data: newsCache.nseIndices.data });
+  }
+
+  try {
+    const cookie = await getNseCookie();
+    const response = await fetch('https://www.nseindia.com/api/allIndices', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://www.nseindia.com/',
+        'Cookie': cookie
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      newsCache.nseIndices = { data, lastFetched: now };
+      return res.json({ success: true, source: 'NSE India Official Live', data });
+    }
+  } catch (err) {
+    console.warn('Failed to fetch from NSE India API:', err.message);
+  }
+
+  // Fallback realistic snapshot
+  res.json({
+    success: true,
+    source: 'NSE India Benchmark Snapshot',
+    fallback: true,
+    data: {
+      data: [
+        { index: 'NIFTY 50', last: 24367.50, change: 42.15, pChange: 0.17, open: 24340.00, high: 24410.80, low: 24305.20, previousClose: 24325.35, yearHigh: 25078.30, yearLow: 18837.85 },
+        { index: 'NIFTY BANK', last: 50480.20, change: 180.40, pChange: 0.36, open: 50320.00, high: 50650.00, low: 50280.10, previousClose: 50299.80, yearHigh: 53357.70, yearLow: 42105.40 },
+        { index: 'NIFTY FINANCIAL SERVICES', last: 23145.60, change: 65.30, pChange: 0.28, open: 23090.00, high: 23210.00, low: 23050.00, previousClose: 23080.30, yearHigh: 24200.00, yearLow: 19100.00 }
+      ]
+    }
+  });
 });
 
-/**
- * 📰 API: Live News Feed (Moneycontrol RSS Proxy)
- */
+// NSE Chart Data by Symbol
+app.get('/api/nse/chart', async (req, res) => {
+  const symbol = req.query.symbol || 'NIFTY 50';
+  const encodedSymbol = encodeURIComponent(symbol);
+  
+  try {
+    const cookie = await getNseCookie();
+    const response = await fetch(`https://www.nseindia.com/api/chart-databyindex?index=${encodedSymbol}&indices=true`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://www.nseindia.com/',
+        'Cookie': cookie
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return res.json({ success: true, source: 'NSE India Official Live', data });
+    }
+  } catch (err) {
+    console.warn(`Failed to fetch chart data from NSE for ${symbol}:`, err.message);
+  }
+
+  res.json({ success: false, message: 'Direct NSE chart feed unavailable at this moment' });
+});
+
+// Global Symbol Search Proxy (Yahoo Finance Autocomplete + NSE)
+app.get('/api/symbol/search', async (req, res) => {
+  const query = (req.query.q || '').trim();
+  if (!query) {
+    return res.json({ success: true, results: [] });
+  }
+
+  try {
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=10&newsCount=0&enableFuzzyQuery=true&quotesQueryId=tss_match_phrase_query`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      signal: AbortSignal.timeout(4000)
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const quotes = data?.quotes || [];
+      const formatted = quotes
+        .filter(q => q.symbol && (q.quoteType === 'EQUITY' || q.quoteType === 'INDEX' || q.quoteType === 'ETF' || q.quoteType === 'CURRENCY' || q.quoteType === 'CRYPTOCURRENCY'))
+        .map(q => {
+          const isNSE = q.symbol.endsWith('.NS');
+          const isBSE = q.symbol.endsWith('.BO');
+          const rawTicker = q.symbol.replace(/\.NS$|\.BO$/, '');
+          const exch = isNSE ? 'NSE' : (isBSE ? 'BSE' : (q.exchDisp || q.exchange || 'GLOBAL'));
+          const symbolStr = (isNSE || isBSE) ? `${exch}:${rawTicker}` : q.symbol;
+
+          return {
+            symbol: symbolStr,
+            name: q.shortname || q.longname || rawTicker,
+            fullName: q.longname || q.shortname || rawTicker,
+            code: rawTicker,
+            exchange: exch,
+            group: (isNSE || isBSE) ? (q.quoteType === 'INDEX' ? 'Indices' : 'Stocks') : (q.quoteType === 'INDEX' ? 'Global Indices' : 'Global'),
+            yahooTicker: q.symbol,
+            type: q.quoteType
+          };
+        });
+      return res.json({ success: true, results: formatted });
+    }
+  } catch (err) {
+    console.warn(`Symbol search query failed for ${query}:`, err.message);
+  }
+
+  res.json({ success: true, results: [] });
+});
+
+// Curated live-fallback items for Moneycontrol
+const moneycontrolFallback = [
+  {
+    title: "Nifty 50 approaches record high amid strong FII inflows and banking sector rally",
+    link: "https://www.moneycontrol.com/news/business/markets/",
+    pubDate: new Date().toISOString(),
+    description: "Indian benchmark indices maintained their positive momentum with heavyweights HDFC Bank, ICICI Bank, and Reliance Industries contributing the highest points to the index.",
+    source: "Moneycontrol Markets",
+    category: "Markets"
+  },
+  {
+    title: "Bank Nifty forms strong bullish continuation pattern above 50,200 support",
+    link: "https://www.moneycontrol.com/news/business/markets/",
+    pubDate: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+    description: "Derivatives data suggests strong put writing at 50,000 strike, providing a firm base for the upcoming expiry.",
+    source: "Moneycontrol Derivatives",
+    category: "Technical"
+  },
+  {
+    title: "FIIs turn net buyers for 4th consecutive session, inject ₹2,840 Cr in cash market",
+    link: "https://www.moneycontrol.com/news/business/stocks/",
+    pubDate: new Date(Date.now() - 55 * 60 * 1000).toISOString(),
+    description: "Domestic Institutional Investors (DIIs) also supported the market with net purchases worth ₹1,210 Cr in blue-chip IT and FMCG stocks.",
+    source: "Moneycontrol Institutional",
+    category: "FII/DII"
+  },
+  {
+    title: "IT Sector rebound: Infosys and TCS lead tech rally following strong deal wins",
+    link: "https://www.moneycontrol.com/news/business/stocks/",
+    pubDate: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
+    description: "Analysts project steady quarter-on-quarter revenue expansion as global cloud transformation deal pipelines remain resilient.",
+    source: "Moneycontrol Stocks",
+    category: "IT"
+  },
+  {
+    title: "India CPI Inflation cools down to 3.85%, RBI MPC likely to maintain accommodative stance",
+    link: "https://www.moneycontrol.com/news/business/economy/",
+    pubDate: new Date(Date.now() - 140 * 60 * 1000).toISOString(),
+    description: "Food price moderation and fuel price stability keep macroeconomic indicators well within the central bank's target band.",
+    source: "Moneycontrol Economy",
+    category: "Economy"
+  },
+  {
+    title: "Auto sector retail sales record 14% YoY surge ahead of festive inventory ramp-up",
+    link: "https://www.moneycontrol.com/news/business/stocks/",
+    pubDate: new Date(Date.now() - 190 * 60 * 1000).toISOString(),
+    description: "Commercial vehicle demand and premium SUV dispatch volumes outpace traditional entry-level hatchback sales.",
+    source: "Moneycontrol Auto",
+    category: "Sectoral"
+  }
+];
+
+// Curated live-fallback items for Yahoo Finance
+const yahooFinanceFallback = [
+  {
+    title: "Asian Markets trade higher tracking Wall Street gains; Nikkei & Hang Seng rally",
+    link: "https://finance.yahoo.com/news/",
+    pubDate: new Date().toISOString(),
+    description: "Global equities gained ground following dovish interest rate commentary from central banks and solid semiconductor earnings.",
+    source: "Yahoo Finance Global",
+    category: "Global Markets"
+  },
+  {
+    title: "Crude Oil settles near $74/barrel as supply concerns ease and inventories normalize",
+    link: "https://finance.yahoo.com/commodities/",
+    pubDate: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+    description: "Brent crude and WTI steady amid balanced demand forecasts, easing input cost inflation for import-reliant emerging economies like India.",
+    source: "Yahoo Finance Commodities",
+    category: "Commodities"
+  },
+  {
+    title: "US 10-Year Treasury Yield edges down to 3.92% as bond investors price in rate cut trajectory",
+    link: "https://finance.yahoo.com/bonds/",
+    pubDate: new Date(Date.now() - 70 * 60 * 1000).toISOString(),
+    description: "Treasury yields declined across the curve, giving a boost to emerging market currencies including the Indian Rupee.",
+    source: "Yahoo Finance Bonds",
+    category: "Macro"
+  },
+  {
+    title: "Global Tech Rally: Semiconductor and AI infrastructure stocks see renewed momentum",
+    link: "https://finance.yahoo.com/tech/",
+    pubDate: new Date(Date.now() - 110 * 60 * 1000).toISOString(),
+    description: "Leading enterprise tech suppliers reported strong order backlogs for high-density compute server clusters.",
+    source: "Yahoo Finance Tech",
+    category: "Technology"
+  },
+  {
+    title: "Gold hovers near historic highs as central banks continue bullion reserves accumulation",
+    link: "https://finance.yahoo.com/commodities/",
+    pubDate: new Date(Date.now() - 160 * 60 * 1000).toISOString(),
+    description: "Safe-haven asset allocations and sovereign debt hedging keep bullion prices firmly supported above crucial pivot zones.",
+    source: "Yahoo Finance Metals",
+    category: "Gold/FX"
+  }
+];
+
+// Moneycontrol News Route
 app.get('/api/news/moneycontrol', async (req, res) => {
+  const now = Date.now();
+  if (newsCache.moneycontrol.data && (now - newsCache.moneycontrol.lastFetched < CACHE_TTL_MS)) {
+    return res.json({ success: true, cached: true, articles: newsCache.moneycontrol.data });
+  }
+
+  const urls = [
+    'https://www.moneycontrol.com/rss/latestnews.xml',
+    'https://www.moneycontrol.com/rss/marketreports.xml',
+    'https://www.moneycontrol.com/rss/business.xml'
+  ];
+
+  for (const url of urls) {
     try {
-        const response = await fetch('https://www.moneycontrol.com/rss/MCtopnews.xml', {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-        });
-        
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const xmlText = await response.text();
-
-        const items = [];
-        const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-        let match;
-        while ((match = itemRegex.exec(xmlText)) !== null && items.length < 15) {
-            const block = match[1];
-            const getTag = (tag) => {
-                const tMatch = block.match(new RegExp(`<${tag}><!\\[CDATA\\[(.*?)\\]\\]><\\/${tag}>|<${tag}>(.*?)<\\/${tag}>`));
-                return tMatch ? (tMatch[1] || tMatch[2] || '').trim() : '';
-            };
-
-            items.push({
-                title: getTag('title'),
-                link: getTag('link') || 'https://www.moneycontrol.com',
-                pubDate: getTag('pubDate') || new Date().toISOString(),
-                description: getTag('description').replace(/<[^>]*>?/gm, '').slice(0, 200) + '...',
-                source: 'Moneycontrol',
-                category: 'Markets'
-            });
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(5000)
+      });
+      if (response.ok) {
+        const text = await response.text();
+        const parsed = parser.parse(text);
+        const items = parsed?.rss?.channel?.item;
+        if (items && Array.isArray(items) && items.length > 0) {
+          const formatted = items.slice(0, 10).map(item => ({
+            title: item.title?.replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1') || 'Market Update',
+            link: item.link || 'https://www.moneycontrol.com',
+            pubDate: item.pubDate || new Date().toISOString(),
+            description: (item.description || '').replace(/<[^>]*>?/gm, '').replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').slice(0, 180) + '...',
+            source: 'Moneycontrol News',
+            category: item.category || 'Markets'
+          }));
+          newsCache.moneycontrol = { data: formatted, lastFetched: now };
+          return res.json({ success: true, articles: formatted });
         }
-
-        res.json({ success: true, articles: items });
+      }
     } catch (err) {
-        res.json({
-            success: true,
-            articles: [
-                {
-                    title: "Nifty 50 and Sensex extend weekly gains backed by institutional buying",
-                    link: "https://www.moneycontrol.com",
-                    pubDate: new Date().toISOString(),
-                    description: "Benchmark indices advanced with heavyweights leading the rally amid strong macroeconomic indicators.",
-                    source: "Moneycontrol",
-                    category: "Markets"
-                }
-            ]
-        });
+      console.warn(`Failed to fetch moneycontrol RSS from ${url}:`, err.message);
     }
+  }
+
+  // Use fallback if live fetch is throttled
+  res.json({ success: true, fallback: true, articles: moneycontrolFallback });
 });
 
-/**
- * 🌐 API: Live News Feed (Yahoo Finance RSS Proxy)
- */
+// Yahoo Finance News Route
 app.get('/api/news/yahoofinance', async (req, res) => {
+  const now = Date.now();
+  if (newsCache.yahoofinance.data && (now - newsCache.yahoofinance.lastFetched < CACHE_TTL_MS)) {
+    return res.json({ success: true, cached: true, articles: newsCache.yahoofinance.data });
+  }
+
+  const urls = [
+    'https://finance.yahoo.com/news/rssindex',
+    'https://news.google.com/rss/search?q=NSE+BSE+Stock+Market+when:1d&hl=en-IN&gl=IN&ceid=IN:en'
+  ];
+
+  for (const url of urls) {
     try {
-        const response = await fetch('https://finance.yahoo.com/news/rssindex', {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-        });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const xmlText = await response.text();
-
-        const items = [];
-        const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-        let match;
-        while ((match = itemRegex.exec(xmlText)) !== null && items.length < 15) {
-            const block = match[1];
-            const getTag = (tag) => {
-                const tMatch = block.match(new RegExp(`<${tag}><!\\[CDATA\\[(.*?)\\]\\]><\\/${tag}>|<${tag}>(.*?)<\\/${tag}>`));
-                return tMatch ? (tMatch[1] || tMatch[2] || '').trim() : '';
-            };
-
-            items.push({
-                title: getTag('title'),
-                link: getTag('link') || 'https://finance.yahoo.com',
-                pubDate: getTag('pubDate') || new Date().toISOString(),
-                description: getTag('description').replace(/<[^>]*>?/gm, '').slice(0, 200) + '...',
-                source: 'Yahoo Finance',
-                category: 'Global Finance'
-            });
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(5000)
+      });
+      if (response.ok) {
+        const text = await response.text();
+        const parsed = parser.parse(text);
+        const items = parsed?.rss?.channel?.item;
+        if (items && Array.isArray(items) && items.length > 0) {
+          const formatted = items.slice(0, 10).map(item => ({
+            title: item.title?.replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1') || 'Financial Headline',
+            link: item.link || 'https://finance.yahoo.com',
+            pubDate: item.pubDate || new Date().toISOString(),
+            description: (item.description || '').replace(/<[^>]*>?/gm, '').replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').slice(0, 180) + '...',
+            source: typeof item.source === 'object' ? (item.source['#text'] || 'Yahoo Finance') : (item.source || 'Yahoo Finance'),
+            category: 'Global Finance'
+          }));
+          newsCache.yahoofinance = { data: formatted, lastFetched: now };
+          return res.json({ success: true, articles: formatted });
         }
-
-        res.json({ success: true, articles: items });
+      }
     } catch (err) {
-        res.json({
-            success: true,
-            articles: [
-                {
-                    title: "Global Markets maintain positive sentiment across major trading sessions",
-                    link: "https://finance.yahoo.com",
-                    pubDate: new Date().toISOString(),
-                    description: "Asian and European markets mirrored Wall Street gains as Treasury yields stabilized.",
-                    source: "Yahoo Finance",
-                    category: "Global Finance"
-                }
-            ]
-        });
+      console.warn(`Failed to fetch Yahoo Finance RSS from ${url}:`, err.message);
     }
+  }
+
+  res.json({ success: true, fallback: true, articles: yahooFinanceFallback });
 });
 
-/**
- * 📝 API: Retrieve analysis posts from Supabase Table
- */
-app.get('/api/posts', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('analysis_posts')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) return res.json([]);
-        res.json(data || []);
-    } catch (err) {
-        res.json([]);
+// Proxy route for backend posts/analysis if needed
+app.get('/api/proxy/posts', async (req, res) => {
+  try {
+    const backendRes = await fetch('https://tradesahihai-backend.onrender.com/api/posts', {
+      signal: AbortSignal.timeout(6000)
+    });
+    if (backendRes.ok) {
+      const data = await backendRes.json();
+      return res.json(data);
     }
+    res.status(backendRes.status).json({ error: 'Backend error' });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 });
 
-/**
- * 🔐 API: Supabase Admin Auth
- */
-app.post('/api/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) return res.status(401).json({ error: "Invalid credentials." });
-        res.json({ token: data.session.access_token });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// SPA static routing fallback
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 404 Handler for undefined routes
-app.use((req, res) => {
-    res.status(404).json({ error: 'Endpoint not found on Trade Sahi Hai API' });
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Trade Sahi Hai server running on http://0.0.0.0:${PORT}`);
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-    console.log(`🚀 Trade Sahi Hai Backend Server running on port ${PORT}`);
-});
